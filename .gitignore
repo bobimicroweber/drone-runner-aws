@@ -10,3 +10,4 @@ temp.pem
 pool.yml
 *.sqlite3
 *.leveldb/*
+hetzner_pool.yml
