@@ -484,7 +484,7 @@ func createDigitalOceanPool(pat string, minPoolSize, maxPoolSize int) *config.Po
 	return &poolfile
 }
 
-func createHetznerPool(pat string, minPoolSize, maxPoolSize int) *config.PoolFile {
+func createHetznerPool(token string, minPoolSize, maxPoolSize int) *config.PoolFile {
 	instance := config.Instance{
 		Name:    DefaultPoolName,
 		Default: true,

@@ -194,8 +194,8 @@ type (
 	}
 
 	HetznerAccount struct {
-		Token    string `json:"token,omitempty" yaml:"token"`
-		Region   string `json:"region,omitempty" yaml:"region,omitempty"`
+		Token  string `json:"token,omitempty" yaml:"token"`
+		Region string `json:"region,omitempty" yaml:"region,omitempty"`
 	}
 
 	// Google specifies the configuration for a GCP instance.
