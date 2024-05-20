@@ -32,6 +32,7 @@ type setupCommand struct {
 	awsAccessKeyID      string
 	awsAccessKeySecret  string
 	digitalOceanPAT     string
+	hetznerToken        string
 	googleProjectID     string
 	googleJSONPath      string
 	ankaVMName          string
@@ -84,6 +85,9 @@ func (c *setupCommand) run(*kingpin.ParseContext) error { //nolint
 	case c.digitalOceanPAT != "":
 		env.DigitalOcean.PAT = c.digitalOceanPAT
 		logrus.Infoln("setup: using digital ocean")
+    case c.hetznerToken != "":
+		env.Hetzner.Token = c.hetznerToken
+		logrus.Infoln("setup: using hetzner token")
 	case c.googleProjectID != "":
 		env.Google.ProjectID = c.googleProjectID
 		// use the default path if the user did not specify one
@@ -99,6 +103,7 @@ func (c *setupCommand) run(*kingpin.ParseContext) error { //nolint
 							for AnkaBuild     --ankabuild-vm-name --ankabuild-url --ankabuild-token
 							for Azure         --azure-client-id --azure-client-secret --azure-subscription-id --azure-tenant-id
 							for Digital Ocean --digital-ocean-pat
+							for Hetzner       --hetzner-token
 							for Google        --google-project-id`)
 	}
 
@@ -280,6 +285,10 @@ func Register(app *kingpin.Application) {
 	cmd.Flag("digital-ocean-pat", "digital ocean token").
 		Default("").
 		StringVar(&c.digitalOceanPAT)
+    // Hetzner specific flags
+	cmd.Flag("hetzner-token", "hetzner token").
+		Default("").
+		StringVar(&c.hetznerToken)
 	// Google specific flags
 	cmd.Flag("google-project-id", "Google project ID").
 		Default("").

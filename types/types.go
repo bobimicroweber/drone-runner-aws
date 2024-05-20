@@ -28,6 +28,7 @@ const (
 	AnkaBuild    = DriverType("ankabuild")
 	Azure        = DriverType("azure")
 	DigitalOcean = DriverType("digitalocean")
+	Hetzner      = DriverType("hetzner")
 	Google       = DriverType("google")
 	VMFusion     = DriverType("vmfusion")
 	Noop         = DriverType("noop")
