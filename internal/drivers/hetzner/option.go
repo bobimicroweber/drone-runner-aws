@@ -23,7 +23,7 @@ func SetPlatformDefaults(platform *types.Platform) (*types.Platform, error) {
 		platform.OS = oshelp.OSLinux
 	}
 	if platform.OS != oshelp.OSLinux {
-		return platform, fmt.Errorf("digitalocean - invalid OS %s, has to be '%s'", platform.OS, oshelp.OSLinux)
+		return platform, fmt.Errorf("hetzner - invalid OS %s, has to be '%s'", platform.OS, oshelp.OSLinux)
 	}
 	// set osname
 	if platform.OS == oshelp.OSLinux {
@@ -34,9 +34,9 @@ func SetPlatformDefaults(platform *types.Platform) (*types.Platform, error) {
 	return platform, nil
 }
 
-func WithPAT(pat string) Option {
+func WithToken(token string) Option {
 	return func(p *config) {
-		p.pat = pat
+		p.token = token
 	}
 }
 
@@ -110,6 +110,6 @@ func WithUserData(text, path string) Option {
 // WithRootDirectory sets the root directory for the virtual machine.
 func WithRootDirectory(dir string) Option {
 	return func(p *config) {
-		p.rootDir = oshelp.JoinPaths(oshelp.OSLinux, "/tmp", "digitalocean")
+		p.rootDir = oshelp.JoinPaths(oshelp.OSLinux, "/tmp", "hetzner")
 	}
 }

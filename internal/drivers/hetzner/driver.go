@@ -12,13 +12,12 @@ import (
 	"github.com/drone/runner-go/logger"
 
 	"github.com/dchest/uniuri"
-	"github.com/digitalocean/godo"
-	"golang.org/x/oauth2"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 )
 
 // config is a struct that implements drivers.Pool interface
 type config struct {
-	pat        string
+	token      string
 	region     string
 	size       string
 	tags       []string
@@ -41,7 +40,7 @@ func New(opts ...Option) (drivers.Driver, error) {
 }
 
 func (p *config) DriverName() string {
-	return string(types.DigitalOcean)
+	return string(types.Hetzner)
 }
 
 func (p *config) InstanceType() string {
@@ -57,8 +56,10 @@ func (p *config) CanHibernate() bool {
 }
 
 func (p *config) Ping(ctx context.Context) error {
-	client := newClient(ctx, p.pat)
-	_, _, err := client.Droplets.List(ctx, &godo.ListOptions{})
+	client := newClient(ctx, p.token)
+
+	_, err := client.Server.All(context.Background())
+
 	return err
 }
 
@@ -66,61 +67,57 @@ func (p *config) Ping(ctx context.Context) error {
 func (p *config) Create(ctx context.Context, opts *types.InstanceCreateOpts) (instance *types.Instance, err error) {
 	startTime := time.Now()
 	logr := logger.FromContext(ctx).
-		WithField("driver", types.DigitalOcean).
+		WithField("driver", types.Hetzner).
 		WithField("pool", opts.PoolName).
 		WithField("image", p.image).
 		WithField("hibernate", p.CanHibernate())
 	var name = fmt.Sprintf("%s-%s-%s", opts.RunnerName, opts.PoolName, uniuri.NewLen(8)) //nolint:gomnd
-	logr.Infof("digitalocean: creating instance %s", name)
+	logr.Infof("hetzner: creating instance %s", name)
 
-	// create a new digitalocean request
-	req := &godo.DropletCreateRequest{
-		Name:     name,
-		Region:   p.region,
-		Size:     p.size,
-		Tags:     p.tags,
-		IPv6:     false,
-		UserData: lehelper.GenerateUserdata(p.userData, opts),
+    // create the instance
+    client := newClient(ctx, p.token)
 
-		Image: godo.DropletCreateImage{
-			Slug: p.image,
-		},
-	}
+    req := hcloud.ServerCreateOpts{
+        Name:       "my-ubuntu-server",
+        Image:      &hcloud.Image{Name: "ubuntu-22.04"},
+        ServerType: &hcloud.ServerType{Name: "cx11"},
+        Location:   &hcloud.Location{Name: "nbg1"},
+    }
+
 	// set the ssh keys if they are provided
 	if len(p.SSHKeys) > 0 {
 		req.SSHKeys = createSSHKeys(p.SSHKeys)
 	}
-	// create droplet
-	client := newClient(ctx, p.pat)
-	droplet, _, err := client.Droplets.Create(ctx, req)
+
+	createServer, _, err := client.Server.Create(context.Background(), req)
 	if err != nil {
 		logr.WithError(err).
 			Errorln("cannot create instance")
 		return nil, err
 	}
-	logr.Infof("digitalocean: instance created %s", name)
+	logr.Infof("hetzner: instance created %s", name)
 	// get firewall id
-	if p.FirewallID == "" {
-		id, getFirewallErr := getFirewallID(ctx, client, len(p.SSHKeys) > 0)
-		if getFirewallErr != nil {
-			logr.WithError(getFirewallErr).
-				Errorln("cannot get firewall id")
-			return nil, getFirewallErr
-		}
-		p.FirewallID = id
-	}
-	// setup the firewall
-	_, firewallErr := client.Firewalls.AddDroplets(ctx, p.FirewallID, droplet.ID)
-	if firewallErr != nil {
-		logr.WithError(firewallErr).
-			Errorln("cannot assign instance to firewall")
-		return nil, firewallErr
-	}
-	logr.Infof("digitalocean: firewall configured %s", name)
+// 	if p.FirewallID == "" {
+// 		id, getFirewallErr := getFirewallID(ctx, client, len(p.SSHKeys) > 0)
+// 		if getFirewallErr != nil {
+// 			logr.WithError(getFirewallErr).
+// 				Errorln("cannot get firewall id")
+// 			return nil, getFirewallErr
+// 		}
+// 		p.FirewallID = id
+// 	}
+// 	// setup the firewall
+// 	_, firewallErr := client.Firewalls.AddDroplets(ctx, p.FirewallID, server.ID)
+// 	if firewallErr != nil {
+// 		logr.WithError(firewallErr).
+// 			Errorln("cannot assign instance to firewall")
+// 		return nil, firewallErr
+// 	}
+// 	logr.Infof("hetzner: firewall configured %s", name)
 	// initialize the instance
 	instance = &types.Instance{
 		Name:         name,
-		Provider:     types.DigitalOcean,
+		Provider:     types.Hetzner,
 		State:        types.StateCreated,
 		Pool:         opts.PoolName,
 		Region:       p.region,
@@ -152,22 +149,22 @@ poller:
 			logr.WithField("name", instance.Name).
 				Debugln("find instance network")
 
-			droplet, _, err = client.Droplets.Get(ctx, droplet.ID)
+            server, _, err := client.Server.GetByID(context.Background(), createServer.Server.ID)
 			if err != nil {
 				logr.WithError(err).
 					Errorln("cannot find instance")
 				return instance, err
 			}
-			instance.ID = fmt.Sprint(droplet.ID)
-			for _, network := range droplet.Networks.V4 {
-				if network.Type == "public" {
-					instance.Address = network.IPAddress
-				}
-			}
-
-			if instance.Address != "" {
-				break poller
-			}
+// 			instance.ID = fmt.Sprint(createServer.Server.ID)
+// 			for _, network := range server.Networks.V4 {
+// 				if network.Type == "public" {
+// 					instance.Address = network.IPAddress
+// 				}
+// 			}
+//
+// 			if instance.Address != "" {
+// 				break poller
+// 			}
 		}
 	}
 
@@ -188,14 +185,14 @@ func (p *config) Destroy(ctx context.Context, instances []*types.Instance) (err 
 		WithField("id", instanceIDs).
 		WithField("driver", types.DigitalOcean)
 
-	client := newClient(ctx, p.pat)
+	client := newClient(ctx, p.token)
 	for _, instanceID := range instanceIDs {
 		id, err := strconv.Atoi(instanceID)
 		if err != nil {
 			return err
 		}
 
-		_, res, err := client.Droplets.Get(ctx, id)
+		_, res, err := client.Server.Get(ctx, id)
 		if err != nil && res.StatusCode == 404 {
 			logr.WithError(err).
 				Warnln("droplet does not exist")
@@ -237,30 +234,33 @@ func (p *config) SetTags(ctx context.Context, instance *types.Instance,
 }
 
 // helper function returns a new digitalocean client.
-func newClient(ctx context.Context, pat string) *godo.Client {
-	return godo.NewClient(
-		oauth2.NewClient(ctx, oauth2.StaticTokenSource(
-			&oauth2.Token{
-				AccessToken: pat,
-			},
-		)),
-	)
+func newClient(ctx context.Context, token string) *hcloud.Client {
+
+	return hcloud.NewClient(hcloud.WithToken(token))
+
 }
 
-// take a slice of ssh keys and return a slice of godo.DropletCreateSSHKey
-func createSSHKeys(sshKeys []string) []godo.DropletCreateSSHKey {
-	var keys []godo.DropletCreateSSHKey
+// take a slice of ssh keys and return a slice of hcloud.SSHKey.Create
+func createSSHKeys(sshKeys []string) {
+
+    var keys []string
 	for _, key := range sshKeys {
-		keys = append(keys, godo.DropletCreateSSHKey{
-			Fingerprint: key,
-		})
-	}
+       opts := hcloud.SSHKeyCreateOpts{
+            Name:      "drone-runner-ssh-key",
+            PublicKey: key,
+        }
+        sshKey, _, err := hcloud.SSHKey.Create(context.Background(), opts)
+        if err != nil {
+            panic(err)
+        }
+    }
+
 	return keys
 }
 
 // retrieve the runner firewall id or create a new one.
-func getFirewallID(ctx context.Context, client *godo.Client, sshException bool) (string, error) {
-	firewalls, _, listErr := client.Firewalls.List(ctx, &godo.ListOptions{})
+func getFirewallID(ctx context.Context, client *hcloud.Client, sshException bool) (string, error) {
+	firewalls, _, listErr := client.Firewalls.List(ctx, &hcloud.ListOptions{})
 	if listErr != nil {
 		return "", listErr
 	}
@@ -271,47 +271,47 @@ func getFirewallID(ctx context.Context, client *godo.Client, sshException bool) 
 		}
 	}
 
-	inboundRules := []godo.InboundRule{
+	inboundRules := []hcloud.InboundRule{
 		{
 			Protocol:  "tcp",
 			PortRange: "9079",
-			Sources: &godo.Sources{
+			Sources: &hcloud.Sources{
 				Addresses: []string{"0.0.0.0/0", "::/0"},
 			},
 		},
 	}
 	if sshException {
-		inboundRules = append(inboundRules, godo.InboundRule{
+		inboundRules = append(inboundRules, hcloud.InboundRule{
 			Protocol:  "tcp",
 			PortRange: "22",
-			Sources: &godo.Sources{
+			Sources: &hcloud.Sources{
 				Addresses: []string{"0.0.0.0/0", "::/0"},
 			},
 		})
 	}
 	// firewall does not exist, create one.
-	firewall, _, createErr := client.Firewalls.Create(ctx, &godo.FirewallRequest{
+	firewall, _, createErr := client.Firewalls.Create(ctx, &hcloud.FirewallRequest{
 		Name:         "harness-runner",
 		InboundRules: inboundRules,
-		OutboundRules: []godo.OutboundRule{
+		OutboundRules: []hcloud.OutboundRule{
 			{
 				Protocol:  "icmp",
 				PortRange: "0",
-				Destinations: &godo.Destinations{
+				Destinations: &hcloud.Destinations{
 					Addresses: []string{"0.0.0.0/0", "::/0"},
 				},
 			},
 			{
 				Protocol:  "tcp",
 				PortRange: "0",
-				Destinations: &godo.Destinations{
+				Destinations: &hcloud.Destinations{
 					Addresses: []string{"0.0.0.0/0", "::/0"},
 				},
 			},
 			{
 				Protocol:  "udp",
 				PortRange: "0",
-				Destinations: &godo.Destinations{
+				Destinations: &hcloud.Destinations{
 					Addresses: []string{"0.0.0.0/0", "::/0"},
 				},
 			},
