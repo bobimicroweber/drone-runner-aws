@@ -180,6 +180,24 @@ type (
 		Region string `json:"region,omitempty" yaml:"region,omitempty"`
 	}
 
+    // Hetzner specifies the configuration for a Hetzner instance.
+	Hetzner struct {
+		Account       HetznerAccount      `json:"account,omitempty"`
+		Image         string              `json:"image,omitempty" yaml:"image,omitempty"`
+		Size          string              `json:"size,omitempty" yaml:"size,omitempty"`
+		FirewallID    string              `json:"firewall_id,omitempty" yaml:"firewall_id,omitempty" default:""`
+		SSHKeys       []string            `json:"ssh_keys,omitempty" yaml:"ssh_keys,omitempty"`
+		Tags          []string            `json:"tags,omitempty" yaml:"tags,omitempty"`
+		RootDirectory string              `json:"root_directory,omitempty" yaml:"root_directory"`
+		UserData      string              `json:"user_data,omitempty" yaml:"user_data,omitempty"`
+		UserDataPath  string              `json:"user_data_Path,omitempty" yaml:"user_data_Path,omitempty"`
+	}
+
+	HetznerAccount struct {
+		Token    string `json:"token,omitempty" yaml:"token"`
+		Region   string `json:"region,omitempty" yaml:"region,omitempty"`
+	}
+
 	// Google specifies the configuration for a GCP instance.
 	Google struct {
 		Account      GoogleAccount     `json:"account,omitempty"  yaml:"account"`
@@ -287,6 +305,10 @@ type EnvConfig struct {
 	DigitalOcean struct {
 		PAT string `envconfig:"DIGITAL_OCEAN_PAT"`
 	}
+
+    Hetzner struct {
+        Token string `envconfig:"HETZNER_TOKEN"`
+    }
 
 	Google struct {
 		ProjectID string `envconfig:"GOOGLE_PROJECT_ID"`
@@ -464,6 +486,8 @@ func (s *Instance) populateSpec() error {
 		s.Spec = new(Azure)
 	case string(types.DigitalOcean):
 		s.Spec = new(DigitalOcean)
+    case string(types.Hetzner):
+        s.Spec = new(Hetzner)
 	case string(types.Google), "gcp":
 		s.Spec = new(Google)
 	case string(types.VMFusion):
