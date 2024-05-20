@@ -10,7 +10,7 @@ instances:
       arch: amd64
     spec:
       account:
-        pat: 8R90FDr0VryuF0SZ2uY2w8uGgD8FxeeOIX7zcXkoGN6XB9btG7scZtq54XxOhl9B
+        token: 8R90FDr0VryuF0SZ2uY2w8uGgD8FxeeOIX7zcXkoGN6XB9btG7scZtq54XxOhl9B
       root_directory: ""
       image: ubuntu-22-04-x64
       size: s-1vcpu-2gb
