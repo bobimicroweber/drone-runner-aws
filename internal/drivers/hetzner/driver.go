@@ -74,15 +74,15 @@ func (p *config) Create(ctx context.Context, opts *types.InstanceCreateOpts) (in
 	var name = fmt.Sprintf("%s-%s-%s", opts.RunnerName, opts.PoolName, uniuri.NewLen(8)) //nolint:gomnd
 	logr.Infof("hetzner: creating instance %s", name)
 
-    // create the instance
-    client := newClient(ctx, p.token)
+	// create the instance
+	client := newClient(ctx, p.token)
 
-    req := hcloud.ServerCreateOpts{
-        Name:       "my-ubuntu-server",
-        Image:      &hcloud.Image{Name: "ubuntu-22.04"},
-        ServerType: &hcloud.ServerType{Name: "cx11"},
-        Location:   &hcloud.Location{Name: "nbg1"},
-    }
+	req := hcloud.ServerCreateOpts{
+		Name:       "my-ubuntu-server",
+		Image:      &hcloud.Image{Name: "ubuntu-22.04"},
+		ServerType: &hcloud.ServerType{Name: "cx11"},
+		Location:   &hcloud.Location{Name: "nbg1"},
+	}
 
 	// set the ssh keys if they are provided
 	if len(p.SSHKeys) > 0 {
@@ -97,23 +97,23 @@ func (p *config) Create(ctx context.Context, opts *types.InstanceCreateOpts) (in
 	}
 	logr.Infof("hetzner: instance created %s", name)
 	// get firewall id
-// 	if p.FirewallID == "" {
-// 		id, getFirewallErr := getFirewallID(ctx, client, len(p.SSHKeys) > 0)
-// 		if getFirewallErr != nil {
-// 			logr.WithError(getFirewallErr).
-// 				Errorln("cannot get firewall id")
-// 			return nil, getFirewallErr
-// 		}
-// 		p.FirewallID = id
-// 	}
-// 	// setup the firewall
-// 	_, firewallErr := client.Firewalls.AddDroplets(ctx, p.FirewallID, server.ID)
-// 	if firewallErr != nil {
-// 		logr.WithError(firewallErr).
-// 			Errorln("cannot assign instance to firewall")
-// 		return nil, firewallErr
-// 	}
-// 	logr.Infof("hetzner: firewall configured %s", name)
+	// 	if p.FirewallID == "" {
+	// 		id, getFirewallErr := getFirewallID(ctx, client, len(p.SSHKeys) > 0)
+	// 		if getFirewallErr != nil {
+	// 			logr.WithError(getFirewallErr).
+	// 				Errorln("cannot get firewall id")
+	// 			return nil, getFirewallErr
+	// 		}
+	// 		p.FirewallID = id
+	// 	}
+	// 	// setup the firewall
+	// 	_, firewallErr := client.Firewalls.AddDroplets(ctx, p.FirewallID, server.ID)
+	// 	if firewallErr != nil {
+	// 		logr.WithError(firewallErr).
+	// 			Errorln("cannot assign instance to firewall")
+	// 		return nil, firewallErr
+	// 	}
+	// 	logr.Infof("hetzner: firewall configured %s", name)
 	// initialize the instance
 	instance = &types.Instance{
 		Name:         name,
@@ -149,22 +149,22 @@ poller:
 			logr.WithField("name", instance.Name).
 				Debugln("find instance network")
 
-            server, _, err := client.Server.GetByID(context.Background(), createServer.Server.ID)
+			server, _, err := client.Server.GetByID(context.Background(), createServer.Server.ID)
 			if err != nil {
 				logr.WithError(err).
 					Errorln("cannot find instance")
 				return instance, err
 			}
-// 			instance.ID = fmt.Sprint(createServer.Server.ID)
-// 			for _, network := range server.Networks.V4 {
-// 				if network.Type == "public" {
-// 					instance.Address = network.IPAddress
-// 				}
-// 			}
-//
-// 			if instance.Address != "" {
-// 				break poller
-// 			}
+			// 			instance.ID = fmt.Sprint(createServer.Server.ID)
+			// 			for _, network := range server.Networks.V4 {
+			// 				if network.Type == "public" {
+			// 					instance.Address = network.IPAddress
+			// 				}
+			// 			}
+			//
+			// 			if instance.Address != "" {
+			// 				break poller
+			// 			}
 		}
 	}
 
@@ -243,17 +243,18 @@ func newClient(ctx context.Context, token string) *hcloud.Client {
 // take a slice of ssh keys and return a slice of hcloud.SSHKey.Create
 func createSSHKeys(sshKeys []string) {
 
-    var keys []string
+	var keys []string
 	for _, key := range sshKeys {
-       opts := hcloud.SSHKeyCreateOpts{
-            Name:      "drone-runner-ssh-key",
-            PublicKey: key,
-        }
-        sshKey, _, err := hcloud.SSHKey.Create(context.Background(), opts)
-        if err != nil {
-            panic(err)
-        }
-    }
+		opts := hcloud.SSHKeyCreateOpts{
+			Name:      "drone-runner-ssh-key",
+			PublicKey: key,
+		}
+		clinet := hcloud.SSHKeyClient()
+		sshKey, _, err := clinet.create(context.Background(), opts)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	return keys
 }
